@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # import the required packages here
+import argparse
 from data import train_data_prepare
 from train import train
 from test import test, test_data_prepare
@@ -34,5 +35,20 @@ def run(train_file, valid_file, test_file, output_file):
 
     # define other functions here
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Deep Learning project')
+    parser.add_argument('--data', type=str, default='data', metavar='D',
+                        help="folder where data is located")
+    parser.add_argument('--predictions', type=str, default='predictions', metavar='P',
+                        help="folder where predictions are stored")
+    args = parser.parse_args()
 
-run('train.tsv', 'valid.tsv', 'test.tsv', 'predictions.txt')
+    train_path = os.path.join(args.data, 'train.tsv')
+    valid_path = os.path.join(args.data, 'valid.tsv')
+    test_path = os.path.join(args.data, 'test.tsv')
+    predictions_path = os.path.join(args.predictions, 'predictions.txt')
+
+    run(train_path, 
+        valid_path,
+        test_path,
+        predictions_path)
