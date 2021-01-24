@@ -7,7 +7,7 @@ from data import train_data_prepare
 from train import train
 from test import test, test_data_prepare
 
-def run(train_file, valid_file, test_file, output_file, batch_size, batch_size_val):
+def run(train_file, valid_file, test_file, output_file, batch_size, batch_size_val, epoch):
     '''The function to run your ML algorithm on given datasets, generate the output and save them into the provided file path
 
     Parameters
@@ -29,7 +29,7 @@ def run(train_file, valid_file, test_file, output_file, batch_size, batch_size_v
     valid_samples = test_data_prepare(valid_file, word2num, 'valid')
 
     # your training algorithm
-    model = train(train_samples, valid_samples, word2num, max_len_statement,  max_len_subject, max_len_speaker_pos, max_len_context, batch_size=batch_size, batch_size_val=batch_size_val)
+    model = train(train_samples, valid_samples, word2num, max_len_statement,  max_len_subject, max_len_speaker_pos, max_len_context, batch_size=batch_size, batch_size_val=batch_size_val, epoch = epoch)
 
     # your prediction code
     test(test_file, output_file, word2num, model)
@@ -46,6 +46,8 @@ if __name__ == '__main__':
                         help="folder where predictions are stored")
     parser.add_argument('--batch_size_val', type=str, default=5, metavar='P',
                         help="folder where predictions are stored")  
+    parser.add_argument('--epoch', type=int, default=5, metavar='P',
+                        help="folder where predictions are stored")  
     args = parser.parse_args()
 
     train_path = os.path.join(args.data, 'train.tsv')
@@ -58,4 +60,5 @@ if __name__ == '__main__':
         test_path,
         predictions_path,
         int(args.batch_size),
-        int(args.batch_size_val))
+        int(args.batch_size_val), 
+        int(args.epoch))

@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import random
 import numpy as np
-from model import Net
+from model import Attention
 from test import valid
 from data import dataset_to_variable, CustomDataset, collate_fn
 from torch.utils.data import DataLoader
@@ -54,7 +54,7 @@ def train(train_samples,
 
     # Construct model instance
     print('  Constructing network model...')
-    model = Net(len(statement_word2num),
+    model = Attention(len(statement_word2num),
                 len(subject_word2num),
                 len(speaker_word2num),
                 len(speaker_pos_word2num),
