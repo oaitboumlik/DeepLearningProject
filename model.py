@@ -41,7 +41,7 @@ class Net(nn.Module):
                  context_lstm_nlayers = 2,
                  context_lstm_bidirectional = True,
                  context_hidden_dim = 6,
-                 dropout = 0.5):
+                 dropout = 0.5,):
 
         # Statement CNN
         super(Net, self).__init__()
@@ -131,20 +131,27 @@ class Net(nn.Module):
                             6)
 
     def forward(self,
-                sample):
-        statement = Variable(sample.statement).unsqueeze(0)
-        subject = Variable(sample.subject).unsqueeze(0)
-        speaker = Variable(sample.speaker).unsqueeze(0)
-        speaker_pos = Variable(sample.speaker_pos).unsqueeze(0)
-        state = Variable(sample.state).unsqueeze(0)
-        party = Variable(sample.party).unsqueeze(0)
-        context = Variable(sample.context).unsqueeze(0)
+                statement, subject, speaker, speaker_pos, state, party, context):
+        # statement = Variable[(s.statement for s in sample]).unsqueeze(0)
+        # subject = Variable(sample.subject).unsqueeze(0)
+        # speaker = Variable(sample.speaker).unsqueeze(0)
+        # speaker_pos = Variable(sample.speaker_pos).unsqueeze(0)
+        # state = Variable(sample.state).unsqueeze(0)
+        # party = Variable(sample.party).unsqueeze(0)
+        # context = Variable(sample.context).unsqueeze(0)
 
-        batch = 1 # Current support one sample per time
+        # statement = torch.tensor([s[0] for s in sample])
+        # subject = torch.tensor([s[1] for s in sample])
+        # speaker = torch.tensor([s[2] for s in sample])
+        # speaker_pos = torch.tensor([s[3] for s in sample])
+        # state = torch.tensor([s[4] for s in sample])
+        # party = torch.tensor([s[5] for s in sample])
+        # context = torch.tensor([s[6] for s in sample])
+
+        # batch = batch # Current support one sample per time
                   # TODO: Increase batch number
-
         # Statement
-        statement_ = self.statement_embedding(statement).unsqueeze(0) # 1*W*D -> 1*1*W*D
+        statement_ = self.statement_embedding(statement).unsqueeze(1) # 1*W*D -> 1*1*W*D
         statement_ = [F.relu(conv(statement_)).squeeze(3) for conv in self.statement_convs] # 1*1*W*1 -> 1*Co*W x [len(convs)]
         statement_ = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in statement_] # 1*Co*1 -> 1*Co x len(convs)
         statement_ = torch.cat(statement_, 1)  # 1*len(convs)
@@ -152,28 +159,28 @@ class Net(nn.Module):
         # Subject
         subject_ = self.subject_embedding(subject) # 1*W*D
         _, (subject_, _) = self.subject_lstm(subject_) # 1*(layer x dir)*hidden
-        subject_ = F.max_pool1d(subject_, self.subject_hidden_dim).view(1, -1) # 1*(layer x dir)*1 -> 1*(layer x dir)
+        subject_ = F.max_pool1d(subject_, self.subject_hidden_dim).view(subject_.size(1), -1) # 1*(layer x dir)*1 -> 1*(layer x dir)
 
         # Speaker
-        speaker_ = self.speaker_embedding(speaker).squeeze(0) # 1*1*D -> 1*D
-
+        # speaker_ = self.speaker_embedding(speaker).squeeze(1) # 1*1*D -> 1*D
+        speaker_ = self.speaker_embedding(speaker).squeeze(1)
         # Speaker Position
         speaker_pos_ = self.speaker_pos_embedding(speaker_pos)
         _, (speaker_pos_, _) = self.speaker_pos_lstm(speaker_pos_)
-        speaker_pos_ = F.max_pool1d(speaker_pos_, self.speaker_pos_hidden_dim).view(1, -1)
-
+        speaker_pos_ = F.max_pool1d(speaker_pos_, self.speaker_pos_hidden_dim).view(speaker_pos_.size(1), -1)
         # State
-        state_ = self.state_embedding(state).squeeze(0)
+        state_ = self.state_embedding(state).squeeze(1)
 
         # Party
-        party_ = self.party_embedding(party).squeeze(0)
+        party_ = self.party_embedding(party).squeeze(1)
 
         # Context
         context_ = self.context_embedding(context)
         _, (context_, _) = self.context_lstm(context_)
-        context_ = F.max_pool1d(context_, self.context_hidden_dim).view(1, -1)
+        context_ = F.max_pool1d(context_, self.context_hidden_dim).view(context_.size(1), -1)
 
         # Concatenate
+        L = (statement_, subject_, speaker_, speaker_pos_, state_, party_, context_)
         features = torch.cat((statement_, subject_, speaker_, speaker_pos_, state_, party_, context_), 1)
         features = self.dropout(features)
         features = self.fc(features)

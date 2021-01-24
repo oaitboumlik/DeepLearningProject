@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from data import DataSample, dataset_to_variable
+from data import DataSample, dataset_to_variable, CustomDataset, collate_fn
+from torch.utils.data import DataLoader
 import numpy as np
 
 num_to_label = ['pants-fire',
@@ -11,6 +12,15 @@ num_to_label = ['pants-fire',
                 'half-true',
                 'mostly-true',
                 'true']
+
+label_to_number = {
+	'pants-fire': 0,
+	'false': 1,
+	'barely-true': 2,
+	'half-true': 3,
+	'mostly-true': 4,
+	'true': 5
+}
 
 def find_word(word2num, token):
     if token in word2num:
@@ -32,15 +42,16 @@ def test_data_prepare(test_file, word2num, phase):
     context_word2num = word2num[6]
 
     test_samples = []
-
+    labels = []
     for line in test_data.strip().split('\n'):
         tmp = line.strip().split('\t')
-        while len(tmp) != 8:
+        while len(tmp) < 14:
             tmp.append('')
         if phase == 'test':
-            p = DataSample('test', tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5], tmp[6])
+            p = DataSample('test', tmp[2], tmp[3], tmp[4], tmp[5], tmp[6], tmp[7], tmp[13])
+            labels.append(label_to_number.get(tmp[1], -1))
         elif phase == 'valid':
-            p = DataSample(tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5], tmp[6], tmp[7])
+            p = DataSample(tmp[1], tmp[2], tmp[3], tmp[4], tmp[5], tmp[6], tmp[7], tmp[13])
 
         for i in range(len(p.statement)):
             p.statement[i] = find_word(statement_word2num, p.statement[i])
@@ -56,26 +67,63 @@ def test_data_prepare(test_file, word2num, phase):
 
         test_samples.append(p)
 
+    if phase == 'test':
+      return test_samples, labels
+
     return test_samples
 
 def test(test_file, test_output, word2num, model, use_cuda = False):
-    test_samples = test_data_prepare(test_file, word2num, 'test')
+    test_samples, labels = test_data_prepare(test_file, word2num, 'test')
     dataset_to_variable(test_samples, use_cuda)
     out = open(test_output, 'w')
+    acc = 0
 
-    for sample in test_samples:
-        prediction = model(sample)
+    for (sample, label) in zip(test_samples, labels):
+        statement = Variable(sample.statement).unsqueeze(0)
+        subject = Variable(sample.subject).unsqueeze(0)
+        speaker = Variable(sample.speaker).unsqueeze(0)
+        speaker_pos = Variable(sample.speaker_pos).unsqueeze(0)
+        state = Variable(sample.state).unsqueeze(0)
+        party = Variable(sample.party).unsqueeze(0)
+        context = Variable(sample.context).unsqueeze(0)
+
+        prediction = model(statement, subject, speaker, speaker_pos, state, party, context)
         prediction = int(np.argmax(prediction.data.numpy()))
+        if prediction == label:
+          acc += 1    
         out.write(num_to_label[prediction]+'\n')
 
     out.close()
+    acc /= len(test_samples)
+    print('Test accuracy :: {}'.format(acc))
 
-def valid(valid_samples, word2num, model):
+def valid(valid_loader, word2num, model, max_len_statement, max_len_subject, max_len_speaker_pos, max_len_context, use_cuda):
     acc = 0
-    for sample in valid_samples:
-        prediction = model(sample)
-        prediction = int(np.argmax(prediction.data.numpy()))
-        if prediction == sample.label:
-            acc += 1
-    acc /= len(valid_samples)
+    n = len(valid_loader.dataset)
+    # valid_samples = CustomDataset(valid_samples, max_len_statement,
+    #                            max_len_subject, max_len_speaker_pos, max_len_context)
+    # valid_loader = DataLoader(valid_samples,
+    #                         batch_size=1,
+    #                         collate_fn=collate_fn)
+
+    for (inputs_statement, inputs_subject, inputs_speaker, inputs_speaker_pos, inputs_state, inputs_party, inputs_context, target) in valid_loader:
+        # prediction = model(sample)
+        
+        if use_cuda:
+          inputs_statement.cuda()
+          inputs_subject.cuda()
+          inputs_speaker.cuda()
+          inputs_speaker_pos.cuda()
+          inputs_state.cuda()
+          inputs_party.cuda()
+          inputs_context.cuda()
+          # sample.cuda()
+          target.cuda()
+
+        prediction = model(inputs_statement, inputs_subject, inputs_speaker, inputs_speaker_pos, inputs_state, inputs_party, inputs_context)
+        prediction = prediction.max(1, keepdim=True)[1]
+        acc += prediction.eq(target.data.view_as(prediction)).cpu().sum()
+
+    print(acc.item())    
+    acc = float(acc.item()) / n
     print('  Validation Accuracy: '+str(acc))
