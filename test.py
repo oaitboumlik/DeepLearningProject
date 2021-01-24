@@ -6,7 +6,7 @@ from torch.autograd import Variable
 from data import DataSample, dataset_to_variable, CustomDataset, collate_fn
 from torch.utils.data import DataLoader
 import numpy as np
-from model import Net
+from model import Attention
 
 
 num_to_label = ['pants-fire',
@@ -89,7 +89,7 @@ def test(test_file, test_output, word2num,
     context_word2num = word2num[6]
 
 
-    model = Net(len(statement_word2num),
+    model = Attention(len(statement_word2num),
                 len(subject_word2num),
                 len(speaker_word2num),
                 len(speaker_pos_word2num),

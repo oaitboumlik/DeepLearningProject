@@ -230,8 +230,10 @@ class Attention(nn.Module):
                  context_hidden_dim = 6,
                  dropout = 0.5, 
                  
-                 h = 60):
-
+                 h = 60, 
+                 sources = ('statement','subject','speaker','speaker_pos','state','party','context')):
+        
+        self.sources = sources
         super(Attention, self).__init__()
         self.attention_projection_dim = h 
         self.attention_score = nn.Linear(self.attention_projection_dim, 1, bias = False)
@@ -328,25 +330,7 @@ class Attention(nn.Module):
 
     def forward(self,
                 statement, subject, speaker, speaker_pos, state, party, context):
-        # statement = Variable[(s.statement for s in sample]).unsqueeze(0)
-        # subject = Variable(sample.subject).unsqueeze(0)
-        # speaker = Variable(sample.speaker).unsqueeze(0)
-        # speaker_pos = Variable(sample.speaker_pos).unsqueeze(0)
-        # state = Variable(sample.state).unsqueeze(0)
-        # party = Variable(sample.party).unsqueeze(0)
-        # context = Variable(sample.context).unsqueeze(0)
 
-        # statement = torch.tensor([s[0] for s in sample])
-        # subject = torch.tensor([s[1] for s in sample])
-        # speaker = torch.tensor([s[2] for s in sample])
-        # speaker_pos = torch.tensor([s[3] for s in sample])
-        # state = torch.tensor([s[4] for s in sample])
-        # party = torch.tensor([s[5] for s in sample])
-        # context = torch.tensor([s[6] for s in sample])
-
-        # batch = batch # Current support one sample per time
-                  # TODO: Increase batch number
-        # Statement
         statement_ = self.statement_embedding(statement).unsqueeze(1) # 1*W*D -> 1*1*W*D
         statement_ = [F.relu(conv(statement_)).squeeze(3) for conv in self.statement_convs] # 1*1*W*1 -> 1*Co*W x [len(convs)]
         statement_ = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in statement_] # 1*Co*1 -> 1*Co x len(convs)
@@ -366,7 +350,7 @@ class Attention(nn.Module):
         subject_attention_score = self.attention_score(subject_projection)
 
         # Speaker
-        # speaker_ = self.speaker_embedding(speaker).squeeze(1) # 1*1*D -> 1*D
+        
         speaker_ = self.speaker_embedding(speaker).squeeze(1)
         speaker_projection = torch.tanh(self.speaker_linear_projection(speaker_))
         speaker_attention_score = self.attention_score(speaker_projection)
@@ -396,25 +380,33 @@ class Attention(nn.Module):
         context_projection = torch.tanh(self.context_linear_projection(context_))
         context_attention_score = self.attention_score(context_projection)
         
-        
+        # print(self.sources)
         # Concatenate
+        source_to_projection = {
+          'statement': statement_projection ,
+          'subject': subject_projection,
+          'speaker':speaker_projection,
+          'speaker_pos': speaker_pos_projection,
+          'state':state_projection,
+          'party':party_projection,
+          'context': context_projection
+        }
+
+        
+        source_to_score = {
+          'statement': statement_attention_score ,
+          'subject': subject_attention_score,
+          'speaker':speaker_attention_score,
+          'speaker_pos': speaker_pos_attention_score,
+          'state':state_attention_score,
+          'party':party_attention_score,
+          'context': context_attention_score
+        }
         # get attention weights : 
-        a = F.softmax(torch.cat((statement_attention_score,\
-                                 subject_attention_score,\
-                                 speaker_attention_score,\
-                                 speaker_pos_attention_score,\
-                                 state_attention_score,\
-                                 party_attention_score,\
-                                 context_attention_score), 1), dim = 1)
+        a = F.softmax(torch.cat([source_to_score[source] for source in self.sources], 1), dim = 1)
 
 
-        List_of_projections = [statement_projection,\
-                               subject_projection,\
-                               speaker_projection,\
-                               speaker_pos_projection,\
-                               state_projection,\
-                               party_projection,\
-                               context_projection]
+        List_of_projections = [source_to_projection[source] for source in self.sources]
         for i, projection in enumerate(List_of_projections): 
           if i == 0 : 
             features = projection * a[:, i:i+1]

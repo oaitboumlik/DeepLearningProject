@@ -24,7 +24,8 @@ def train(train_samples,
           use_cuda = False,
           batch_size=20,
           batch_size_val=5,
-          model_path='models'):
+          model_path='models', 
+          sources = ('statement','subject','speaker','speaker_pos','state','party','context')):
 
     print('Training...')
 
@@ -63,7 +64,8 @@ def train(train_samples,
                 len(speaker_pos_word2num),
                 len(state_word2num),
                 len(party_word2num),
-                len(context_word2num))
+                len(context_word2num), 
+                sources = sources)
     if use_cuda:
         print('using cuda')
         model.cuda()
@@ -101,6 +103,7 @@ def train(train_samples,
             prediction = model(inputs_statement, inputs_subject, inputs_speaker, inputs_speaker_pos, inputs_state, inputs_party, inputs_context)
             # label = Variable(torch.LongTensor([sample.label]))
             # loss = F.cross_entropy(prediction, label)
+
             loss = F.cross_entropy(prediction, target)
             loss.backward()
             optimizer.step()
