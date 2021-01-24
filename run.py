@@ -7,7 +7,7 @@ from data import train_data_prepare
 from train import train
 from test import test, test_data_prepare
 
-def run(train_file, valid_file, test_file, output_file, batch_size, batch_size_val):
+def run(train_file, valid_file, test_file, output_file, batch_size, batch_size_val, n_epochs, lr, model_path):
     '''The function to run your ML algorithm on given datasets, generate the output and save them into the provided file path
 
     Parameters
@@ -29,12 +29,16 @@ def run(train_file, valid_file, test_file, output_file, batch_size, batch_size_v
     valid_samples = test_data_prepare(valid_file, word2num, 'valid')
 
     # your training algorithm
-    model = train(train_samples, valid_samples, word2num, max_len_statement,  max_len_subject, max_len_speaker_pos, max_len_context, batch_size=batch_size, batch_size_val=batch_size_val)
+    val_acc = train(train_samples, valid_samples, word2num, max_len_statement, 
+                  max_len_subject, max_len_speaker_pos, max_len_context,
+                  batch_size=batch_size, batch_size_val=batch_size_val, 
+                  epoch=n_epochs, lr=lr, model_path=model_path)
 
     # your prediction code
-    test(test_file, output_file, word2num, model)
+    test(test_file, output_file, word2num,
+         model_path, batch_size, lr,
+         val_acc)
 
-    # define other functions here
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Deep Learning project')
@@ -42,10 +46,16 @@ if __name__ == '__main__':
                         help="folder where data is located")
     parser.add_argument('--predictions', type=str, default='predictions', metavar='P',
                         help="folder where predictions are stored")
-    parser.add_argument('--batch_size', type=str, default=20, metavar='P',
+    parser.add_argument('--batch_size', type=int, default=20, metavar='P',
                         help="folder where predictions are stored")
-    parser.add_argument('--batch_size_val', type=str, default=5, metavar='P',
-                        help="folder where predictions are stored")  
+    parser.add_argument('--batch_size_val', type=int, default=5, metavar='P',
+                        help="folder where predictions are stored")
+    parser.add_argument('--epochs', type=int, default=5, metavar='P',
+                        help="number of epochs") 
+    parser.add_argument('--lr', type=float, default=0.001, 
+                        help='learning_rate')
+    parser.add_argument('--model_path', type=str, default='models', 
+                      help='models')
     args = parser.parse_args()
 
     train_path = os.path.join(args.data, 'train.tsv')
@@ -58,4 +68,7 @@ if __name__ == '__main__':
         test_path,
         predictions_path,
         int(args.batch_size),
-        int(args.batch_size_val))
+        int(args.batch_size_val),
+        int(args.epochs),
+        args.lr,
+        args.model_path)

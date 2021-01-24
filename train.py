@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,6 +10,7 @@ from model import Net
 from test import valid
 from data import dataset_to_variable, CustomDataset, collate_fn
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 def train(train_samples,
           valid_samples,
@@ -21,7 +23,8 @@ def train(train_samples,
           epoch = 1,
           use_cuda = False,
           batch_size=20,
-          batch_size_val=5):
+          batch_size_val=5,
+          model_path='models'):
 
     print('Training...')
 
@@ -69,10 +72,12 @@ def train(train_samples,
     print('  Start training')
 
     optimizer = optim.Adam(model.parameters(), lr = lr)
+    lr_scheduler = ReduceLROnPlateau(optimizer=optimizer, mode='max', factor=0.5, patience=5)
     model.train()
 
     step = 0
     display_interval = 50
+    optimal_val_acc = 0
 
     for epoch_ in range(epoch):
         print('  ==> Epoch '+str(epoch_)+' started.')
@@ -108,6 +113,17 @@ def train(train_samples,
 
         print('  ==> Epoch '+str(epoch_)+' finished. Avg Loss: '+str(total_loss/len(train_data)))
 
-        valid(valid_loader, word2num, model, max_len_statement, max_len_subject, max_len_speaker_pos, max_len_context, use_cuda)
+        val_acc = valid(valid_loader, word2num, model, max_len_statement, max_len_subject, max_len_speaker_pos, max_len_context, use_cuda)
+        lr_scheduler.step(val_acc)
+        for param_group in optimizer.param_groups:
+            print("The current learning rate used by the optimizer is : {}".format(param_group['lr']))
 
-    return model
+        if val_acc > optimal_val_acc:
+            optimal_val_acc = val_acc
+            model_file = os.path.join(model_path, 'model_bs_{}_lr_{}_acc_{}.pth'.format(batch_size, lr, val_acc)) 
+            old_models = [os.path.join(model_path, filename) for filename in os.listdir(model_path) if filename.startswith("model_bs_{}_lr_{}".format(batch_size, lr))]
+            for file_ in old_models:
+                os.remove(file_)
+            torch.save(model.state_dict(), model_file)
+
+    return optimal_val_acc

@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,6 +6,8 @@ from torch.autograd import Variable
 from data import DataSample, dataset_to_variable, CustomDataset, collate_fn
 from torch.utils.data import DataLoader
 import numpy as np
+from model import Net
+
 
 num_to_label = ['pants-fire',
                 'false',
@@ -72,7 +75,30 @@ def test_data_prepare(test_file, word2num, phase):
 
     return test_samples
 
-def test(test_file, test_output, word2num, model, use_cuda = False):
+def test(test_file, test_output, word2num,
+         model_path, batch_size, lr,
+         val_acc, use_cuda = False):
+
+    print('  Constructing network model...')
+    statement_word2num = word2num[0]
+    subject_word2num = word2num[1]
+    speaker_word2num = word2num[2]
+    speaker_pos_word2num = word2num[3]
+    state_word2num = word2num[4]
+    party_word2num = word2num[5]
+    context_word2num = word2num[6]
+
+
+    model = Net(len(statement_word2num),
+                len(subject_word2num),
+                len(speaker_word2num),
+                len(speaker_pos_word2num),
+                len(state_word2num),
+                len(party_word2num),
+                len(context_word2num))
+
+    state_dict = torch.load(os.path.join(model_path, 'model_bs_{}_lr_{}_acc_{}.pth'.format(batch_size, lr, val_acc)))
+    model.load_state_dict(state_dict)
     test_samples, labels = test_data_prepare(test_file, word2num, 'test')
     dataset_to_variable(test_samples, use_cuda)
     out = open(test_output, 'w')
@@ -95,7 +121,11 @@ def test(test_file, test_output, word2num, model, use_cuda = False):
 
     out.close()
     acc /= len(test_samples)
+    print('================================')
     print('Test accuracy :: {}'.format(acc))
+    print('Val accuracy :: {}'.format(val_acc))
+    print('================================')
+
 
 def valid(valid_loader, word2num, model, max_len_statement, max_len_subject, max_len_speaker_pos, max_len_context, use_cuda):
     acc = 0
@@ -123,7 +153,7 @@ def valid(valid_loader, word2num, model, max_len_statement, max_len_subject, max
         prediction = model(inputs_statement, inputs_subject, inputs_speaker, inputs_speaker_pos, inputs_state, inputs_party, inputs_context)
         prediction = prediction.max(1, keepdim=True)[1]
         acc += prediction.eq(target.data.view_as(prediction)).cpu().sum()
-
-    print(acc.item())    
+    
     acc = float(acc.item()) / n
     print('  Validation Accuracy: '+str(acc))
+    return acc
