@@ -54,7 +54,6 @@ def train(train_samples,
                             batch_size=batch_size_val,
                             collate_fn=collate_fn)
 
-    # dataset_to_variable(valid_data, use_cuda)
 
     # Construct model instance
     print('  Constructing network model...')
@@ -83,11 +82,9 @@ def train(train_samples,
 
     for epoch_ in range(epoch):
         print('  ==> Epoch '+str(epoch_)+' started.')
-        # random.shuffle(train_data)
         total_loss = 0
         for (inputs_statement, inputs_subject, inputs_speaker, inputs_speaker_pos, inputs_state, inputs_party, inputs_context,  target) in train_loader:
 
-            # sample = [inputs_statement, inputs_subject, inputs_speaker, inputs_speaker_pos, inputs_state, inputs_party, inputs_context]
             optimizer.zero_grad()
             if use_cuda:
               inputs_statement.cuda()
@@ -97,12 +94,10 @@ def train(train_samples,
               inputs_state.cuda()
               inputs_party.cuda()
               inputs_context.cuda()
-              # sample.cuda()
               target.cuda()
 
             prediction = model(inputs_statement, inputs_subject, inputs_speaker, inputs_speaker_pos, inputs_state, inputs_party, inputs_context)
-            # label = Variable(torch.LongTensor([sample.label]))
-            # loss = F.cross_entropy(prediction, label)
+            
 
             loss = F.cross_entropy(prediction, target)
             loss.backward()

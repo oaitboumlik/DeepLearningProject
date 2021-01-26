@@ -132,37 +132,19 @@ class Net(nn.Module):
 
     def forward(self,
                 statement, subject, speaker, speaker_pos, state, party, context):
-        # statement = Variable[(s.statement for s in sample]).unsqueeze(0)
-        # subject = Variable(sample.subject).unsqueeze(0)
-        # speaker = Variable(sample.speaker).unsqueeze(0)
-        # speaker_pos = Variable(sample.speaker_pos).unsqueeze(0)
-        # state = Variable(sample.state).unsqueeze(0)
-        # party = Variable(sample.party).unsqueeze(0)
-        # context = Variable(sample.context).unsqueeze(0)
-
-        # statement = torch.tensor([s[0] for s in sample])
-        # subject = torch.tensor([s[1] for s in sample])
-        # speaker = torch.tensor([s[2] for s in sample])
-        # speaker_pos = torch.tensor([s[3] for s in sample])
-        # state = torch.tensor([s[4] for s in sample])
-        # party = torch.tensor([s[5] for s in sample])
-        # context = torch.tensor([s[6] for s in sample])
-
-        # batch = batch # Current support one sample per time
-                  # TODO: Increase batch number
+  
         # Statement
-        statement_ = self.statement_embedding(statement).unsqueeze(1) # 1*W*D -> 1*1*W*D
-        statement_ = [F.relu(conv(statement_)).squeeze(3) for conv in self.statement_convs] # 1*1*W*1 -> 1*Co*W x [len(convs)]
-        statement_ = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in statement_] # 1*Co*1 -> 1*Co x len(convs)
-        statement_ = torch.cat(statement_, 1)  # 1*len(convs)
+        statement_ = self.statement_embedding(statement).unsqueeze(1) 
+        statement_ = [F.relu(conv(statement_)).squeeze(3) for conv in self.statement_convs] 
+        statement_ = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in statement_] 
+        statement_ = torch.cat(statement_, 1)  
         print(f'statement_ :: {statement_.size()}')
         # Subject
-        subject_ = self.subject_embedding(subject) # 1*W*D
-        _, (subject_, _) = self.subject_lstm(subject_) # 1*(layer x dir)*hidden
-        subject_ = F.max_pool1d(subject_, self.subject_hidden_dim).view(subject_.size(1), -1) # 1*(layer x dir)*1 -> 1*(layer x dir)
+        subject_ = self.subject_embedding(subject) 
+        _, (subject_, _) = self.subject_lstm(subject_) 
+        subject_ = F.max_pool1d(subject_, self.subject_hidden_dim).view(subject_.size(1), -1) 
         print(f'subject_ :: {subject_.size()}')
         # Speaker
-        # speaker_ = self.speaker_embedding(speaker).squeeze(1) # 1*1*D -> 1*D
         speaker_ = self.speaker_embedding(speaker).squeeze(1)
         print(f'speaker_ :: {speaker_.size()}')
         # Speaker Position
@@ -233,8 +215,9 @@ class Attention(nn.Module):
                  h = 60, 
                  sources = ('statement','subject','speaker','speaker_pos','state','party','context')):
         
-        self.sources = sources
+        
         super(Attention, self).__init__()
+        self.sources = sources
         self.attention_projection_dim = h 
         self.attention_score = nn.Linear(self.attention_projection_dim, 1, bias = False)
 
@@ -331,20 +314,19 @@ class Attention(nn.Module):
     def forward(self,
                 statement, subject, speaker, speaker_pos, state, party, context):
 
-        statement_ = self.statement_embedding(statement).unsqueeze(1) # 1*W*D -> 1*1*W*D
-        statement_ = [F.relu(conv(statement_)).squeeze(3) for conv in self.statement_convs] # 1*1*W*1 -> 1*Co*W x [len(convs)]
-        statement_ = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in statement_] # 1*Co*1 -> 1*Co x len(convs)
-        statement_ = torch.cat(statement_, 1)  # 1*len(convs)
-
+        statement_ = self.statement_embedding(statement).unsqueeze(1) 
+        statement_ = [F.relu(conv(statement_)).squeeze(3) for conv in self.statement_convs] 
+        statement_ = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in statement_] 
+        statement_ = torch.cat(statement_, 1)  
         statement_projection = torch.tanh(self.statement_linear_projection(statement_))
         statement_attention_score = self.attention_score(statement_projection)
 
 
 
         # Subject
-        subject_ = self.subject_embedding(subject) # 1*W*D
-        _, (subject_, _) = self.subject_lstm(subject_) # 1*(layer x dir)*hidden
-        subject_ = F.max_pool1d(subject_, self.subject_hidden_dim).view(subject_.size(1), -1) # 1*(layer x dir)*1 -> 1*(layer x dir)
+        subject_ = self.subject_embedding(subject) 
+        _, (subject_, _) = self.subject_lstm(subject_)
+        subject_ = F.max_pool1d(subject_, self.subject_hidden_dim).view(subject_.size(1), -1)
         
         subject_projection = torch.tanh(self.subject_linear_projection(subject_))
         subject_attention_score = self.attention_score(subject_projection)
@@ -380,7 +362,6 @@ class Attention(nn.Module):
         context_projection = torch.tanh(self.context_linear_projection(context_))
         context_attention_score = self.attention_score(context_projection)
         
-        # print(self.sources)
         # Concatenate
         source_to_projection = {
           'statement': statement_projection ,

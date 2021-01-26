@@ -36,7 +36,7 @@ def run(train_file, valid_file, test_file, output_file, batch_size, batch_size_v
     # your prediction code
     test(test_file, output_file, word2num,
          model_path, batch_size, lr,
-         val_acc)
+         val_acc, sources = sources)
 
 
 if __name__ == '__main__':

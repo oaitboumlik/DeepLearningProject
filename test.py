@@ -77,7 +77,7 @@ def test_data_prepare(test_file, word2num, phase):
 
 def test(test_file, test_output, word2num,
          model_path, batch_size, lr,
-         val_acc, use_cuda = False):
+         val_acc, sources, use_cuda = False):
 
     print('  Constructing network model...')
     statement_word2num = word2num[0]
@@ -95,7 +95,8 @@ def test(test_file, test_output, word2num,
                 len(speaker_pos_word2num),
                 len(state_word2num),
                 len(party_word2num),
-                len(context_word2num))
+                len(context_word2num),
+                sources = sources)
 
     state_dict = torch.load(os.path.join(model_path, 'model_bs_{}_lr_{}_acc_{}.pth'.format(batch_size, lr, val_acc)))
     model.load_state_dict(state_dict)
@@ -125,19 +126,25 @@ def test(test_file, test_output, word2num,
     print('Test accuracy :: {}'.format(acc))
     print('Val accuracy :: {}'.format(val_acc))
     print('================================')
+    file_path = f'{model_path}/results.csv'
+    if os.path.exists(file_path):
+      f = open(file_path, 'a')
+      f.write(f'{" + ".join(sources)},{val_acc}, {acc} \n ')
+      f.close()
+    else : 
+      f = open(file_path, 'x')
+      f.write('sources, validation accuracy, test accuracy \n')
+      f.write(f'{" + ".join(sources)},{val_acc}, {acc} \n')
+      f.close()
+
 
 
 def valid(valid_loader, word2num, model, max_len_statement, max_len_subject, max_len_speaker_pos, max_len_context, use_cuda):
     acc = 0
     n = len(valid_loader.dataset)
-    # valid_samples = CustomDataset(valid_samples, max_len_statement,
-    #                            max_len_subject, max_len_speaker_pos, max_len_context)
-    # valid_loader = DataLoader(valid_samples,
-    #                         batch_size=1,
-    #                         collate_fn=collate_fn)
+
 
     for (inputs_statement, inputs_subject, inputs_speaker, inputs_speaker_pos, inputs_state, inputs_party, inputs_context, target) in valid_loader:
-        # prediction = model(sample)
         
         if use_cuda:
           inputs_statement.cuda()
@@ -147,7 +154,6 @@ def valid(valid_loader, word2num, model, max_len_statement, max_len_subject, max
           inputs_state.cuda()
           inputs_party.cuda()
           inputs_context.cuda()
-          # sample.cuda()
           target.cuda()
 
         prediction = model(inputs_statement, inputs_subject, inputs_speaker, inputs_speaker_pos, inputs_state, inputs_party, inputs_context)
